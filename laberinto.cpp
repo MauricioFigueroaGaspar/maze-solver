@@ -33,14 +33,13 @@ public:
 vector<Node*>* Node::ancestros(Node* root) {
   vector<Node*>* result = new vector<Node*>;
   Node* explorer = this;
+
   while(explorer != root) {
-    // guardo primero el nodo actual
     result -> push_back(explorer);
-    // y subo al padre
     explorer = explorer -> parent;
     if(explorer == nullptr) return nullptr;
   }
-  // al final meto la raiz
+
   result -> push_back(explorer);
   return result;
 }
@@ -53,7 +52,8 @@ vector<vector<int>> neighbours = { {1,0},{0,-1},{-1,0},{0,1} };
 set<vector<int>> visited;
 Node* goalNode = nullptr;
 
-// revisa limites, paredes ('0') y celdas que ya visitamos
+
+
 bool is_valid(int row, int column) {
 	if(row < 0 || row >= rows || column < 0 || column >= columns) return false;
 	if(maze[row][column] == '0') return false;
@@ -61,14 +61,16 @@ bool is_valid(int row, int column) {
 	return true;
 }
 
+
+
 void dfs(int row, int column, Node* node) {
 	// se marca al entrar, no al salir
 	visited.insert({row, column});
 	for(vector<int> neighbor : neighbours) {
 		int neighborRow = row + neighbor[0];
 		int neighborColumn = column + neighbor[1];
+
 		if (is_valid(neighborRow, neighborColumn)) {
-			// el texto queda como (3,3), listo para copiar al archivo
 			Node* child = new Node("(" + to_string(neighborRow) + "," + to_string(neighborColumn) + ")");
 			node -> add_child(child);
 			// guardo la meta
@@ -76,8 +78,10 @@ void dfs(int row, int column, Node* node) {
 			// sigo por este hijo antes de los otros
 			dfs(neighborRow, neighborColumn, child);
 		}
+
 	}
 }
+
 
 // arbol dfs con el inicio como raiz
 Node* build_dfs(int startRow, int startColumn) {
@@ -85,6 +89,7 @@ Node* build_dfs(int startRow, int startColumn) {
 	dfs(startRow, startColumn, root);
 	return root;
 }
+
 
 // arbol bfs con cola
 Node* build_bfs(int startRow, int startColumn) {
@@ -107,6 +112,7 @@ Node* build_bfs(int startRow, int startColumn) {
 		for(vector<int> neighbor : neighbours) {
 			int neighborRow = position[0] + neighbor[0];
 			int neighborColumn = position[1] + neighbor[1];
+
 			if(is_valid(neighborRow, neighborColumn)) {
 				Node* child = new Node("(" + to_string(neighborRow) + "," + to_string(neighborColumn) + ")");
 				node -> add_child(child);
@@ -116,18 +122,19 @@ Node* build_bfs(int startRow, int startColumn) {
 				nodeQueue.push(child);
 				positionQueue.push({neighborRow, neighborColumn});
 			}
+
 		}
 	}
 	return root;
 }
 
-// preorden: primero el nodo y despues cada hijo
+
+
 void preorder(Node* node, vector<Node*>* result) {
 	result -> push_back(node);
 	for(Node* child : node -> children) preorder(child, result);
 }
 
-// postorden: primero los hijos y despues el nodo
 void postorder(Node* node, vector<Node*>* result) {
   for(Node* child : node->children) {
     postorder(child, result);
@@ -135,10 +142,13 @@ void postorder(Node* node, vector<Node*>* result) {
   result -> push_back(node);
 }
 
+
+
 // bfs sobre el arbol ya armado, sacando de la cola
 void bfs(Node* root, vector<Node*>* result) {
 	queue<Node*> nodeQueue;
 	nodeQueue.push(root);
+
 	while(!nodeQueue.empty()) {
 		// saco y guardo en el mismo renglon
 		Node* node = nodeQueue.front(); nodeQueue.pop();
@@ -147,11 +157,12 @@ void bfs(Node* root, vector<Node*>* result) {
 	}
 }
 
+
 // escribe una lista de nodos en una sola linea, separados por coma
 void write_file(string filename, vector<Node*>* path) {
 	ofstream fout(filename);
-	// para no poner coma antes del primero
 	bool first = true;
+
 	for(Node* node : *path) {
 		if(!first) fout << ",";
 		fout << node -> value;
@@ -161,8 +172,10 @@ void write_file(string filename, vector<Node*>* path) {
 	fout.close();
 }
 
+
+
 int main() {
-	for(int number = 1; number <= 6; number++) {
+	for(int number = 1; number <= 7; number++) {
 		string filename = "laberinto_" + to_string(number) + ".in";
 		ifstream fin(filename);
 
@@ -173,6 +186,8 @@ int main() {
 
 		maze.clear();
 		string line;
+
+
 		for(int row = 0; row < rows; row++) {
 			fin >> line;
 			maze.push_back(line);
@@ -188,6 +203,7 @@ int main() {
 				}
 			}
 		}
+
 		fin.close();
 
 		cout << "Laberinto " << number << endl;
@@ -231,5 +247,4 @@ int main() {
 		vector<Node*>* bfsSolution = goalNode -> ancestros(bfsRoot);
 		write_file(prefix + "_bfs_solucion.out", bfsSolution);
 	}
-	return 0;
 }
