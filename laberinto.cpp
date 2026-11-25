@@ -8,7 +8,6 @@
 #include <utility>
 using namespace std;
 
-// nodo del arbol: una casilla con cualquier cantidad de hijos
 class Node {
 public:
 	string value;
@@ -21,7 +20,6 @@ public:
 	}
 
 	Node* add_child(Node* child) {
-		// el padre es quien lo descubrió
 		child -> parent = this;
 		children.push_back(child);
 		return child;
@@ -50,11 +48,9 @@ vector<Node*>* Node::ancestros(Node* root) {
 // datos del laberinto que comparten todas las funciones
 int rows, columns;
 vector<string> maze;
-// abajo, izquierda, arriba, derecha: este orden nunca cambia
+// orden de chequeo: abajo, izquierda, arriba, derecha
 vector<vector<int>> neighbours = { {1,0},{0,-1},{-1,0},{0,1} };
-// posiciones ya usadas
 set<vector<int>> visited;
-// se guarda el nodo de la meta cuando se crea
 Node* goalNode = nullptr;
 
 // revisa limites, paredes ('0') y celdas que ya visitamos
@@ -65,7 +61,6 @@ bool is_valid(int row, int column) {
 	return true;
 }
 
-// dfs recursivo: marco la celda apenas entro y pruebo los 4 vecinos
 void dfs(int row, int column, Node* node) {
 	// se marca al entrar, no al salir
 	visited.insert({row, column});
@@ -91,7 +86,7 @@ Node* build_dfs(int startRow, int startColumn) {
 	return root;
 }
 
-// arbol bfs con cola: se marca visitada al encolar, no al sacar
+// arbol bfs con cola
 Node* build_bfs(int startRow, int startColumn) {
 	Node* root = new Node("(" + to_string(startRow) + "," + to_string(startColumn) + ")");
 	// cola de nodos del arbol
@@ -162,7 +157,6 @@ void write_file(string filename, vector<Node*>* path) {
 		fout << node -> value;
 		first = false;
 	}
-	// siempre termina con salto de linea
 	fout << endl;
 	fout.close();
 }
