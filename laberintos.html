@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dos formas de salir</title>
+<style>
+:root{--ink:#0b1b28;--deep:#07121b;--card:#102636;--line:#244057;--txt:#eee6d3;--mut:#8fa5b6;--amb:#ffb02e;--cya:#4fe3d0}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--txt);font:15px/1.45 "Segoe UI",system-ui,sans-serif;background:radial-gradient(900px 500px at 10% -5%,#16384f 0,transparent 65%),var(--ink)}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--cya);outline-offset:2px}
+header{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:end;justify-content:space-between;padding:26px clamp(16px,4vw,48px) 8px}
+h1{margin:0;font:italic 400 clamp(32px,5vw,54px)/1 Georgia,"Palatino Linotype",serif;letter-spacing:-.5px}
+h1 small{display:block;margin-top:8px;font:400 14px "Segoe UI",system-ui,sans-serif;font-style:normal;color:var(--mut);letter-spacing:0}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+.btn,select{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer}
+.btn:hover,select:hover{border-color:var(--cya)}
+#empty{max-width:640px;margin:7vh auto;padding:0 20px;text-align:center}
+#drop{border:2px dashed var(--line);border-radius:22px;padding:48px 24px;transition:.15s}
+#drop.over{border-color:var(--amb);background:#ffb02e14}
+#drop h2{margin:0 0 8px;font:italic 400 28px Georgia,serif}
+#drop p{margin:0 0 20px;color:var(--mut)}
+#msg{color:#ff8f8f;min-height:22px;margin-top:14px}
+#stage,#bar{display:none}
+body.on #stage{display:grid}body.on #bar{display:flex}body.on #empty{display:none}
+#stage{grid-template-columns:1fr 1fr;gap:20px;padding:12px clamp(16px,4vw,48px) 110px}
+.panel{background:linear-gradient(var(--card),var(--deep));border:1px solid var(--line);border-radius:18px;padding:16px 16px 14px;min-width:0}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.ph h2{margin:0;font:italic 400 24px Georgia,serif}
+.ph h2 b{font:600 13px "Segoe UI",sans-serif;font-style:normal;color:var(--mut);margin-left:8px}
+.dfs h2{color:var(--amb)}.bfs h2{color:var(--cya)}
+.st{margin:4px 0 12px;color:var(--mut);font-size:13.5px;min-height:20px}
+.cw{display:flex;justify-content:center}
+canvas{display:block;background:var(--deep);border-radius:12px;max-width:100%}
+#bar{position:fixed;left:0;right:0;bottom:0;gap:16px;align-items:center;padding:14px clamp(16px,4vw,48px);background:#07121bef;border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+#play{width:48px;height:48px;border-radius:50%;border:0;background:var(--amb);color:#1d1200;font-size:20px;cursor:pointer;flex:none}
+#scr{flex:1;min-width:80px;accent-color:var(--amb)}
+.sp{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:13px;white-space:nowrap}
+#spd{width:110px;accent-color:var(--cya)}
+@media(max-width:820px){#stage{grid-template-columns:1fr}.sp span{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dos formas de salir<small>El mismo laberinto, explorado a fondo (DFS) y por oleadas (BFS)</small></h1>
+  <div class="tools">
+    <select id="sel" aria-label="Laberinto"></select>
+    <button class="btn" id="load">Cargar archivos</button>
+    <button class="btn" id="rnd">Laberinto aleatorio</button>
+    <input type="file" id="fi" multiple accept=".in,.out,.txt" hidden>
+  </div>
+</header>
+
+<div id="empty">
+  <div id="drop">
+    <h2>Suelta aquí tus archivos</h2>
+    <p>Selecciona de una vez el laberinto_N.in y los .out que generó tu programa: dfs_preorden, dfs_postorden, dfs_solucion, bfs_recorrido y bfs_solucion.</p>
+    <button class="btn" id="load2">Elegir archivos</button>
+    <button class="btn" id="demo">Ver demo con laberinto_3</button>
+    <div id="msg"></div>
+  </div>
+</div>
+
+<main id="stage">
+  <section class="panel dfs">
+    <div class="ph"><h2>Profundidad<b>DFS</b></h2>
+      <select id="mode" aria-label="Recorrido DFS"><option value="preorden">Preorden</option><option value="postorden">Postorden</option></select></div>
+    <div class="st" id="sD"></div><div class="cw"><canvas id="cD"></canvas></div>
+  </section>
+  <section class="panel bfs">
+    <div class="ph"><h2>Anchura<b>BFS</b></h2></div>
+    <div class="st" id="sB"></div><div class="cw"><canvas id="cB"></canvas></div>
+  </section>
+</main>
+
+<div id="bar">
+  <button id="play" aria-label="Reproducir o pausar">▶</button>
+  <input type="range" id="scr" min="0" max="1" step="0.01" value="0" aria-label="Avance">
+  <label class="sp"><span>Velocidad</span><input type="range" id="spd" min="0" max="100" value="45"><output id="spl"></output></label>
+</div>
+
+<script>
+const $=s=>document.querySelector(s),PAUSE=8,dpr=window.devicePixelRatio||1;
+const P={dfs:{cv:$('#cD'),h:[50,-8],st:$('#sD')},bfs:{cv:$('#cB'),h:[195,150],st:$('#sB')}};
+let mazes={},M=null,t=0,T=1,playing=false,last=0,dirty=true;
+const cells=s=>[...(s||'').matchAll(/\((\d+)\s*,\s*(\d+)\)/g)].map(m=>[+m[1],+m[2]]);
+const str=a=>a.map(c=>`(${c[0]},${c[1]})`).join(',');
+const spd=()=>3*Math.pow(60,$('#spd').value/100);
+
+/* Resuelve en el navegador con el mismo orden de vecinos (↓ ← ↑ →): sirve para la demo y el laberinto aleatorio */
+function solveJS(txt){
+  const tk=txt.split(/\s+/).filter(Boolean),R=+tk[0],C=+tk[1],g=tk.slice(2,2+R);
+  let A,B;g.forEach((r,i)=>[...r].forEach((ch,j)=>{if(ch=='A')A=[i,j];if(ch=='B')B=[i,j]}));
+  const D=[[1,0],[0,-1],[-1,0],[0,1]],mk=(c,p)=>({c,p,k:[]});
+  const ok=(r,c,v)=>r>=0&&r<R&&c>=0&&c<C&&g[r][c]!='0'&&!v.has(r*C+c);
+  const path=n=>{const a=[];for(;n;n=n.p)a.push(n.c);return a};
+  let v=new Set([A[0]*C+A[1]]),dg,bg,root=mk(A,null);
+  (function f(n){for(const[d,e]of D){const r=n.c[0]+d,c=n.c[1]+e;if(ok(r,c,v)){v.add(r*C+c);const h=mk([r,c],n);n.k.push(h);if(g[r][c]=='B')dg=h;f(h)}}})(root);
+  const pre=[],post=[];(function w(n){pre.push(n.c);n.k.forEach(x=>w(x));post.push(n.c)})(root);
+  v=new Set([A[0]*C+A[1]]);const q=[mk(A,null)],bo=[];
+  for(let i=0;i<q.length;i++){const n=q[i];bo.push(n.c);for(const[d,e]of D){const r=n.c[0]+d,c=n.c[1]+e;if(ok(r,c,v)){v.add(r*C+c);const h=mk([r,c],n);q.push(h);if(g[r][c]=='B')bg=h}}}
+  return{in:txt,dfs_preorden:str(pre),dfs_postorden:str(post),dfs_solucion:str(path(dg)),bfs_recorrido:str(bo),bfs_solucion:str(path(bg))};
+}
+const DEMO="10 10\n1100001100\n011A111000\n0100100001\n0011100011\n0010000010\n1110011110\n1011110010\n100000B110\n1110001000\n0011001111";
+function randomMaze(){
+  const R=25,C=33,g=Array.from({length:R},()=>Array(C).fill('0')),st=[[1,1]];g[1][1]='1';
+  while(st.length){const[r,c]=st[st.length-1],o=[[2,0],[-2,0],[0,2],[0,-2]].filter(([a,b])=>r+a>0&&r+a<R-1&&c+b>0&&c+b<C-1&&g[r+a][c+b]=='0').sort(()=>Math.random()-.5);
+    if(!o.length){st.pop();continue}const[a,b]=o[0];g[r+a/2][c+b/2]=g[r+a][c+b]='1';st.push([r+a,c+b])}
+  for(let r=1;r<R-1;r++)for(let c=1;c<C-1;c++)if((r+c)%2&&Math.random()<.07)g[r][c]='1';
+  g[1][1]='A';g[R-2][C-2]='B';return `${R} ${C}\n`+g.map(r=>r.join('')).join('\n');
+}
+
+async function load(fs){
+  let first;
+  for(const f of fs){
+    let m=f.name.match(/^(.+?)_(dfs_preorden|dfs_postorden|dfs_solucion|bfs_recorrido|bfs_solucion)(?:\.out|\.txt)?$/i),k,n;
+    if(m){k=m[1];n=m[2].toLowerCase()}else if(m=f.name.match(/^(.+)\.in$/i)){k=m[1];n='in'}else continue;
+    (mazes[k]=mazes[k]||{})[n]=await f.text();first=first||k;
+  }
+  refresh(first);
+}
+function refresh(sel){
+  const ks=Object.keys(mazes).filter(k=>mazes[k].in).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  if(!ks.length){$('#msg').textContent='Falta el archivo .in del laberinto (por ejemplo laberinto_3.in).';return}
+  $('#sel').innerHTML=ks.map(k=>`<option>${k}</option>`).join('');
+  $('#sel').value=ks.includes(sel)?sel:ks[0];
+  document.body.classList.add('on');setup();
+}
+function build(a){
+  const d=mazes[$('#sel').value];
+  const ex=cells(a=='dfs'?(d['dfs_'+$('#mode').value]||d.dfs_preorden):d.bfs_recorrido),sol=cells(d[a+'_solucion']);
+  if(sol.length&&sol[0][0]==M.B[0]&&sol[0][1]==M.B[1])sol.reverse();
+  const ix=new Int32Array(M.R*M.C).fill(-1);ex.forEach((c,i)=>ix[c[0]*M.C+c[1]]=i);
+  P[a].d=ex.length?{ex,sol,ix}:null;
+}
+function setup(){
+  const tk=mazes[$('#sel').value].in.split(/\s+/).filter(Boolean),R=+tk[0],C=+tk[1],g=tk.slice(2,2+R);
+  let A,B;g.forEach((r,i)=>[...r].forEach((ch,j)=>{if(ch=='A')A=[i,j];if(ch=='B')B=[i,j]}));
+  M={R,C,g,A,B};build('dfs');build('bfs');
+  T=Math.max(1,...Object.values(P).map(p=>p.d?p.d.ex.length+PAUSE+p.d.sol.length:0));
+  $('#scr').max=T;t=0;playing=false;btn();size();
+}
+function size(){
+  if(!M)return;
+  for(const k in P){const p=P[k],pw=p.cv.parentElement.clientWidth,w=Math.min(pw,innerHeight*.62*M.C/M.R),h=w*M.R/M.C;
+    p.cv.style.width=w+'px';p.cv.style.height=h+'px';p.cv.width=w*dpr;p.cv.height=h*dpr}
+  dirty=true;
+}
+function draw(k){
+  const p=P[k],D=p.d,x=p.cv.getContext('2d'),{R,C,g}=M,s=p.cv.width/dpr/C;
+  x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,C*s,R*s);
+  const n=D?D.ex.length:1,ne=D?Math.min(Math.floor(t),n):0,ns=D?Math.max(0,Math.min(Math.floor(t-n-PAUSE),D.sol.length)):0,gp=s*.07;
+  for(let i=0;i<R;i++)for(let j=0;j<C;j++){
+    if(g[i][j]=='0')continue;
+    const o=D?D.ix[i*C+j]:-1;let col='#1c3347';
+    if(o>=0&&o<ne){const age=ne-o,gl=age<12?1-age/12:0;col=`hsl(${p.h[0]+(p.h[1]-p.h[0])*o/n},80%,${38+gl*28}%)`}
+    x.fillStyle=col;x.beginPath();x.roundRect(j*s+gp,i*s+gp,s-2*gp,s-2*gp,s*.2);x.fill();
+  }
+  if(ns>1){x.save();x.lineCap=x.lineJoin='round';x.strokeStyle='#fff8e1';x.lineWidth=s*.3;x.shadowColor='#fff';x.shadowBlur=s*.8;x.beginPath();
+    D.sol.slice(0,ns).forEach((c,i)=>x[i?'lineTo':'moveTo']((c[1]+.5)*s,(c[0]+.5)*s));x.stroke();x.restore()}
+  if(D&&ne>0&&ne<n){const c=D.ex[ne-1];x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.arc((c[1]+.5)*s,(c[0]+.5)*s,s*.4,0,7);x.stroke()}
+  for(const[c,col,l]of[[M.A,'#3ef0a8','A'],[M.B,'#ff5d7a','B']]){
+    x.fillStyle=col;x.beginPath();x.arc((c[1]+.5)*s,(c[0]+.5)*s,s*.36,0,7);x.fill();
+    x.fillStyle='#08131c';x.font=`700 ${s*.44}px Georgia,serif`;x.textAlign='center';x.textBaseline='middle';x.fillText(l,(c[1]+.5)*s,(c[0]+.5)*s+s*.02);
+  }
+  p.st.textContent=!D?'No se cargaron los archivos de este recorrido':ne<n?`Explorando: ${ne} de ${n} celdas`:ns<D.sol.length?`Trazando la salida: ${ns} de ${D.sol.length} celdas`:`Listo: ${n} celdas exploradas, camino de ${D.sol.length} celdas`;
+}
+function btn(){$('#play').textContent=playing?'❚❚':'▶'}
+function toggle(){if(!M)return;if(t>=T)t=0;playing=!playing;last=performance.now();btn()}
+function frame(ts){
+  if(playing){t=Math.min(T,t+(ts-last)/1000*spd());if(t>=T){playing=false;btn()}dirty=true}
+  last=ts;
+  if(dirty&&M){draw('dfs');draw('bfs');$('#scr').value=t;dirty=false}
+  requestAnimationFrame(frame);
+}
+$('#play').onclick=toggle;
+$('#scr').oninput=e=>{t=+e.target.value;dirty=true};
+$('#spd').oninput=()=>$('#spl').textContent=Math.round(spd())+' celdas/s';$('#spd').oninput();
+$('#sel').onchange=setup;$('#mode').onchange=()=>{if(M){build('dfs');T=Math.max(1,...Object.values(P).map(p=>p.d?p.d.ex.length+PAUSE+p.d.sol.length:0));$('#scr').max=T;t=Math.min(t,T);dirty=true}};
+for(const b of['#load','#load2'])$(b).onclick=()=>$('#fi').click();
+$('#fi').onchange=e=>load(e.target.files);
+$('#demo').onclick=()=>{mazes.laberinto_3_demo=solveJS(DEMO);refresh('laberinto_3_demo')};
+$('#rnd').onclick=()=>{const k='aleatorio_'+Object.keys(mazes).length;mazes[k]=solveJS(randomMaze());refresh(k)};
+document.body.ondragover=e=>{e.preventDefault();$('#drop').classList.add('over')};
+document.body.ondragleave=()=>$('#drop').classList.remove('over');
+document.body.ondrop=e=>{e.preventDefault();$('#drop').classList.remove('over');load(e.dataTransfer.files)};
+addEventListener('resize',size);
+addEventListener('keydown',e=>{if(e.target.tagName=='SELECT')return;
+  if(e.code=='Space'){e.preventDefault();toggle()}
+  if(e.code=='ArrowRight'){t=Math.min(T,t+1);dirty=true}if(e.code=='ArrowLeft'){t=Math.max(0,t-1);dirty=true}});
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
